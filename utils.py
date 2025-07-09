@@ -7,6 +7,11 @@ from pydantic import BaseModel
 def read_cached_avro(file_path: str):
   return read_avro(file_path) if Path(file_path).exists() else DataFrame()
 
+class Video(BaseModel):
+  video_id: str
+  video_title: str
+  video_author: str
+
 class Data(BaseModel):
   comment_id: str
   content: str

@@ -1,18 +1,12 @@
 from os import getenv
 
-from pydantic import BaseModel
 from pyyoutube import Api, Comment, CommentThread, PyYouTubeException # pyright: ignore[reportMissingTypeStubs]
 from polars import DataFrame, read_avro, concat, col
-from utils import Data, read_cached_avro
+from utils import Data, Video, read_cached_avro
 
 client = Api(api_key=getenv("YOUTUBE_API_KEY"))
 videos = read_avro("videos.avro")
 df = read_cached_avro("comments.avro")
-
-class Video(BaseModel):
-  video_id: str
-  video_title: str
-  video_author: str
 
 def append(df: DataFrame, data: Data) -> DataFrame:
   return concat([df, DataFrame(data.model_dump())], how="vertical", rechunk=True)
