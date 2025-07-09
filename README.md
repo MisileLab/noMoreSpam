@@ -50,12 +50,12 @@ noMoreSpam is a tool designed to identify and filter bot comments on YouTube vid
 
 1. Collect YouTube videos:
    ```
-   python data/get_videos.py
+   python main.py data/get_videos.py
    ```
 
 2. Collect comments from videos:
    ```
-   python data/get_comments.py
+   python main.py data/get_comments.py
    ```
 
 ### Classification
