@@ -1,16 +1,23 @@
+from os import getenv
+
+from pydantic import BaseModel
 from pyyoutube import Api, Comment, CommentThread, PyYouTubeException # pyright: ignore[reportMissingTypeStubs]
 from polars import DataFrame, read_avro, concat, col
-from os import getenv
-from .utils import Data, read_cached_avro
+from utils import Data, read_cached_avro
 
 client = Api(api_key=getenv("YOUTUBE_API_KEY"))
 videos = read_avro("videos.avro")
 df = read_cached_avro("comments.avro")
 
+class Video(BaseModel):
+  video_id: str
+  video_title: str
+  video_author: str
+
 def append(df: DataFrame, data: Data) -> DataFrame:
   return concat([df, DataFrame(data.model_dump())], how="vertical", rechunk=True)
 
-def append_comment(df: DataFrame, comment: Comment, video_id: str) -> DataFrame:
+def append_comment(df: DataFrame, comment: Comment, video: Video) -> DataFrame:
   snippet = comment.snippet
   if snippet is None:
     raise ValueError("Comment has no snippet")
@@ -32,12 +39,14 @@ def append_comment(df: DataFrame, comment: Comment, video_id: str) -> DataFrame:
     author_name=authorDisplayName,
     author_image_url=authorImageUrl,
     parent_id=snippet.parentId if snippet.parentId else "",
-    video_id=video_id
+    video_id=video.video_id,
+    video_title=video.video_title,
+    video_author=video.video_author
   ))
   df.write_avro("comments.avro")
   return df
 
-def append_commentThreads(df: DataFrame, commentThread: CommentThread, video_id: str) -> DataFrame:
+def append_commentThreads(df: DataFrame, commentThread: CommentThread, video: Video) -> DataFrame:
   snippet = commentThread.snippet
   if snippet is None:
     raise ValueError("CommentThread has no snippet")
@@ -47,14 +56,14 @@ def append_commentThreads(df: DataFrame, commentThread: CommentThread, video_id:
   topLevelComment_id = topLevelComment.id
   if topLevelComment_id is None:
     raise ValueError("Top-level comment has no ID")
-  df = append_comment(df, topLevelComment, video_id)
+  df = append_comment(df, topLevelComment, video)
   _replies = commentThread.replies
   replies = _replies.comments if _replies is not None else []
   if not replies:
     replies = []
   if len(replies) == snippet.totalReplyCount:
     for reply in replies:
-      df = append_comment(df, reply, video_id)
+      df = append_comment(df, reply, video)
   else:
     comments = client.get_comments( # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
       parts="id,snippet",
@@ -66,11 +75,11 @@ def append_commentThreads(df: DataFrame, commentThread: CommentThread, video_id:
     if items is None:
       items = []
     for reply in items:
-      df = append_comment(df, reply, video_id)
+      df = append_comment(df, reply, video)
   return df
 
 for i in videos.iter_rows(named=True):
-  video_id: str = i["videoId"] # pyright: ignore[reportAny]
+  video_id: str = i["video_id"] # pyright: ignore[reportAny]
   if len(df) != 0 and df.filter(col("video_id") == video_id).height > 0:
     continue
   print(video_id)
@@ -95,5 +104,9 @@ for i in videos.iter_rows(named=True):
   if not items:
     continue
 
-  for i in items:
-    df = append_commentThreads(df, i, video_id)
+  for j in items:
+    df = append_commentThreads(df, j, Video(
+      video_id=video_id,
+      video_title=i["video_title"], # pyright: ignore[reportAny]
+      video_author=i["video_author"] # pyright: ignore[reportAny]
+    ))

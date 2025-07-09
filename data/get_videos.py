@@ -17,8 +17,28 @@ if not items:
   print("No videos found.")
   exit(1)
 
-df = DataFrame({
-  "videoId": [item.id for item in items]
-})
-df.write_avro("videos.avro")
+df: dict[str, list[str]] = {
+  "video_id": [],
+  "video_title": [],
+  "video_author": [],
+}
+
+for i in items:
+  video_id = i.id
+  if not video_id:
+    continue
+  df["video_id"].append(video_id)
+  snippet = i.snippet
+  if not snippet:
+    continue
+  title = snippet.title
+  if not title:
+    continue
+  channel_title = snippet.channelTitle
+  if not channel_title:
+    continue
+  df["video_title"].append(title)
+  df["video_author"].append(channel_title)
+
+DataFrame(df).write_avro("videos.avro")
 

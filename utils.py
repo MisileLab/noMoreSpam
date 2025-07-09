@@ -13,6 +13,8 @@ class Data(BaseModel):
   author_name: str
   author_image_url: str
   video_id: str
+  video_title: str
+  video_author: str
   parent_id: str = ""
 
 class ProcessedData(Data):
