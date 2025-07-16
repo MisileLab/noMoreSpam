@@ -1,7 +1,10 @@
 from os import getenv
+from time import sleep
 
 from pyyoutube import Api, Comment, CommentThread, PyYouTubeException # pyright: ignore[reportMissingTypeStubs]
 from polars import DataFrame, read_avro, concat, col
+from requests import ReadTimeout
+
 from utils import Data, Video, read_cached_avro
 
 client = Api(api_key=getenv("YOUTUBE_API_KEY"))
@@ -91,6 +94,15 @@ for i in videos.iter_rows(named=True):
       print(f"Comments are disabled for video {video_id}. Skipping.")
       continue
     raise e
+  except ReadTimeout:
+    print("fallback, sleep 10 seconds")
+    sleep(10)
+    comments = client.get_comment_threads( # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+      video_id=video_id,
+      count=None,
+      parts="replies,snippet,id",
+      order="relevance"
+    )
   if isinstance(comments, dict):
     exit(1)
 
