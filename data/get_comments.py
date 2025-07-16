@@ -97,12 +97,16 @@ for i in videos.iter_rows(named=True):
   except ReadTimeout:
     print("fallback, sleep 10 seconds")
     sleep(10)
-    comments = client.get_comment_threads( # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
-      video_id=video_id,
-      count=None,
-      parts="replies,snippet,id",
-      order="relevance"
-    )
+    try:
+      comments = client.get_comment_threads( # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+        video_id=video_id,
+        count=None,
+        parts="replies,snippet,id",
+        order="relevance"
+      )
+    except ReadTimeout:
+      print("Failed to fetch comments after retrying. Skipping video.")
+      continue
   if isinstance(comments, dict):
     exit(1)
 
