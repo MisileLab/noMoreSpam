@@ -20,8 +20,12 @@ original_comments = deepcopy(comments)
 df = read_cached_avro("processed.avro")
 
 # Remove already processed comments from the comments DataFrame
-processed_ids = set(df.select("comment_id").to_series().to_list())
-comments = comments.filter(~col("comment_id").is_in(processed_ids))
+if len(df) > 0:
+  processed_ids = set(df.select("comment_id").to_series().to_list())
+  comments = comments.filter(~col("comment_id").is_in(processed_ids))
+else:
+  processed_ids = set()
+  comments = deepcopy(original_comments)
 
 prompt = Path("prompt").read_text()
 comments_iter = comments.iter_rows(named=True)
