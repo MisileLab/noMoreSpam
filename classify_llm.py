@@ -21,7 +21,7 @@ df = read_cached_avro("processed.avro")
 
 # Remove already processed comments from the comments DataFrame
 if len(df) > 0:
-  processed_ids = set(df.select("comment_id").to_series().to_list())
+  processed_ids: set[DataFrame] = set(df.select("comment_id").to_series().to_list())
   comments = comments.filter(~col("comment_id").is_in(processed_ids))
 else:
   processed_ids = set()
@@ -68,7 +68,12 @@ async def process_batch(batch: list[dict[str, str]], agent: Agent) -> list[Proce
   tasks: list[CoroutineType[None, None, ProcessedData | None]] = []
   for item in batch:
     data = Data.model_validate(item)
-    tasks.append(process_comment(agent, data))
+    video = Video(
+      video_id=data.video_id,
+      video_title=data.video_title,
+      video_author=data.video_author
+    )
+    tasks.append(process_comment(agent, data, video))
 
   results = await asyncio.gather(*tasks)
   return [r for r in results if r is not None]
