@@ -212,14 +212,33 @@ def _(
     train_dataset,
     valid_dataset,
 ):
+    import re
+    import emoji
+    from soynlp.normalizer import repeat_normalize
+
     # prepare tokenizer
     tokenizer = AutoTokenizer.from_pretrained("beomi/KcELECTRA-base")
+
+    emojis = ''.join(emoji.UNICODE_EMOJI.keys())
+    pattern = re.compile(f'[^ .,?!/@$%~％·∼()\x00-\x7Fㄱ-ㅣ가-힣{emojis}]+')
+    url_pattern = re.compile(
+        r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
+    HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
+
+    def clean(x: str) -> str:
+        x = HTML_TAG_PATTERN.sub('', x)
+        x = pattern.sub(' ', x)
+        x = emoji.replace_emoji(x, replace='') #emoji 삭제
+        x = url_pattern.sub('', x)
+        x = x.strip()
+        x = repeat_normalize(x, num_repeats=2)
+        return x
 
     # dataset wrapper
     class YTBotDataset(Dataset):
         def __init__(self, ds, tokenizer, max_length=128):
-            self.author_names = ds["author_name"].to_list()
-            self.contents = ds["content"].to_list()
+            self.author_names = [clean(i) for i in ds["author_name"].to_list()]
+            self.contents = [clean(i) for i in ds["content"].to_list()]
             self.labels = [int(x) for x in ds["is_bot_comment"].to_list()]
             self.tokenizer = tokenizer
             self.max_length = max_length
