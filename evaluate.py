@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 from transformers import ElectraModel, AutoTokenizer
-import re
-import emoji
-from soynlp.normalizer import repeat_normalize
+# import re
+# import emoji
+# from soynlp.normalizer import repeat_normalize
 
 # Model classes
 class SpamUserClassificationLayer(nn.Module):
@@ -90,17 +90,18 @@ class SpamUserClassifier(nn.Module):
 
 # Text cleaning function
 def clean(x: str) -> str:
-    emojis = ''.join(emoji.UNICODE_EMOJI.keys())
-    pattern = re.compile(f'[^ .,?!/@$%~％·∼()\x00-\x7Fㄱ-ㅣ가-힣{emojis}]+')
-    url_pattern = re.compile(
-        r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
-    HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
-    x = HTML_TAG_PATTERN.sub('', x)
-    x = pattern.sub(' ', x)
-    x = emoji.replace_emoji(x, replace='')
-    x = url_pattern.sub('', x)
-    x = x.strip()
-    x = repeat_normalize(x, num_repeats=2)
+    # emojis = ''.join(emoji.UNICODE_EMOJI.keys())
+    # pattern = re.compile(f'[^ .,?!/@$%~％·∼()\x00-\x7Fㄱ-ㅣ가-힣{emojis}]+')
+    # url_pattern = re.compile(
+    #     r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
+    # HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
+    # x = HTML_TAG_PATTERN.sub('', x)
+    # x = pattern.sub(' ', x)
+    # x = emoji.replace_emoji(x, replace='')
+    # x = url_pattern.sub('', x)
+    # x = x.strip()
+    # x = repeat_normalize(x, num_repeats=2)
+    # return x
     return x
 
 # Load model and tokenizer
