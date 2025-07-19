@@ -890,7 +890,7 @@ wheels = [
 
 [[package]]
 name = "marimo"
-version = "0.14.10"
+version = "0.14.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -910,9 +910,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fa/93/d646fccda297843c41fa088e831212a425036e1cf7ea1c1fca41d7f7ad56/marimo-0.14.10.tar.gz", hash = "sha256:195247aabaccb7559532daa0313b7f47647ba78b98e151fe2b85df1f67bff79e", size = 29134153, upload-time = "2025-07-03T00:54:02.37Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/68/60/6e126ffe81ff4b9ba0af69b1f407b5fcd9f6d5a913559fb06f9f5ac2a0fe/marimo-0.14.11.tar.gz", hash = "sha256:cd430c37d022121b4dcfe0a5f6c8a987120d43afa7e1b9cbb75f85027f7fa8a1", size = 29247216, upload-time = "2025-07-15T19:49:18.529Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/7a/296b66193a41a3024b56280b53e5066050fa0213469dd528bc1b322dac88/marimo-0.14.10-py3-none-any.whl", hash = "sha256:1fb78e272aaa25405f03ce9103972660ea694efc65e5b39b653d8291a9dea719", size = 29611482, upload-time = "2025-07-03T00:54:06.436Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/88/a23e901ef3896d7a9b7caf5bf42415960fc265b7a74c1a4b7355b534893a/marimo-0.14.11-py3-none-any.whl", hash = "sha256:5e2cbdeb5b777c7e764287950e027c8c3392bce5c8e4f6255cb169f2a6a622d2", size = 29735225, upload-time = "2025-07-15T19:49:22.989Z" },
 ]
 
 [[package]]
@@ -1187,7 +1187,7 @@ requires-dist = [
     { name = "datasets", specifier = "==4.0.0" },
     { name = "gradio", specifier = "==5.35.0" },
     { name = "keras", specifier = "==3.10.0" },
-    { name = "marimo", specifier = "==0.14.10" },
+    { name = "marimo", specifier = "==0.14.11" },
     { name = "openai", specifier = "==1.93.0" },
     { name = "plotly", specifier = "==6.2.0" },
     { name = "polars", specifier = "==1.31.0" },
@@ -1205,7 +1205,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'cpu'", specifier = "==2.7.1+cpu", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "nomorespam", extra = "cpu" } },
     { name = "torch", marker = "extra == 'rocm'", specifier = "==2.7.1+rocm6.3", index = "https://download.pytorch.org/whl/rocm6.3", conflict = { package = "nomorespam", extra = "rocm" } },
     { name = "tqdm", specifier = "==4.67.1" },
-    { name = "transformers", specifier = "==4.53.1" },
+    { name = "transformers", specifier = "==4.53.2" },
     { name = "websockets", specifier = "==15.0.1" },
 ]
 provides-extras = ["cpu", "rocm"]
@@ -2437,7 +2437,7 @@ wheels = [
 
 [[package]]
 name = "transformers"
-version = "4.53.1"
+version = "4.53.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filelock" },
@@ -2451,9 +2451,9 @@ dependencies = [
     { name = "tokenizers" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9f/2c/68a0024c311db41bb92d4ec17d22e90b7406a4d28aa18d87662f2bbebcd9/transformers-4.53.1.tar.gz", hash = "sha256:da5a9f66ad480bc2a7f75bc32eaf735fd20ac56af4325ca4ce994021ceb37710", size = 9192189, upload-time = "2025-07-04T08:28:40.571Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4c/67/80f51466ec447028fd84469b208eb742533ce06cc8fad2e3181380199e5c/transformers-4.53.2.tar.gz", hash = "sha256:6c3ed95edfb1cba71c4245758f1b4878c93bf8cde77d076307dacb2cbbd72be2", size = 9201233, upload-time = "2025-07-11T12:39:08.742Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/10/8cef2288810a3210659eb3a20711e8387cc35a881a7762ae387806e2d651/transformers-4.53.1-py3-none-any.whl", hash = "sha256:c84f3c3e41c71fdf2c60c8a893e1cd31191b0cb463385f4c276302d2052d837b", size = 10825681, upload-time = "2025-07-04T08:28:37.318Z" },
+    { url = "https://files.pythonhosted.org/packages/96/88/beb33a79a382fcd2aed0be5222bdc47f41e4bfe7aaa90ae1374f1d8ea2af/transformers-4.53.2-py3-none-any.whl", hash = "sha256:db8f4819bb34f000029c73c3c557e7d06fc1b8e612ec142eecdae3947a9c78bf", size = 10826609, upload-time = "2025-07-11T12:39:05.461Z" },
 ]
 
 [[package]]
