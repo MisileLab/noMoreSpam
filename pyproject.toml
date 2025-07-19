@@ -21,7 +21,7 @@ dependencies = [
   "datasets==4.0.0",
   "protobuf==6.31.1",
   "altair==5.5.0",
-  "python-lsp-server==1.12.2",
+  "python-lsp-server==1.13.0",
   "websockets==15.0.1",
   "python-lsp-ruff==2.2.2",
   "torch==2.7.1",
