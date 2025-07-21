@@ -1,8 +1,11 @@
 import os
 import sys
 import random
+import argparse
 from copy import deepcopy
 from pathlib import Path
+import time
+from datetime import timedelta
 
 import polars as pl
 from rich.console import Console
@@ -14,7 +17,20 @@ from utils import Data, ProcessedData, read_cached_avro
 
 console = Console()
 
-def display_comment(data: Data, index: int, total: int):
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Manually classify comments with configurable options.")
+    parser.add_argument("--default", choices=["y", "n"], default="n", 
+                        help="Default classification (y=bot/spam, n=normal)")
+    parser.add_argument("--filter", type=str, default=None,
+                        help="Filter comments containing this text")
+    parser.add_argument("--author-filter", type=str, default=None,
+                        help="Filter comments by author name containing this text")
+    parser.add_argument("--auto", choices=["y", "n"], default=None,
+                        help="Auto mode: automatically classify all comments as specified (y=bot/spam, n=normal)")
+    return parser.parse_args()
+
+def display_comment(data: Data, index: int, total: int, default_choice="n", auto_choice=None):
     """Display a comment with rich formatting for manual classification."""
     console.clear()
     
@@ -26,6 +42,7 @@ def display_comment(data: Data, index: int, total: int):
     # Create a table for comment information
     comment_table = Table(show_header=False, box=None)
     comment_table.add_row("Author:", data.author_name)
+    comment_table.add_row("Comment Length:", str(len(data.content)))
     
     # If there's a parent comment, try to show it
     parent_info = ""
@@ -43,11 +60,16 @@ def display_comment(data: Data, index: int, total: int):
     console.print(Panel(f"{parent_info}\n{data.content}", title="Content"))
     console.print(f"Comment {index} of {total}")
     
+    # If in auto mode, use the auto choice
+    if auto_choice:
+        console.print(f"[bold]Auto classifying as {'bot/spam' if auto_choice == 'y' else 'normal'}[/bold]")
+        return auto_choice
+    
     # Ask for classification
     choice = Prompt.ask(
         "Is this a bot/spam comment?",
         choices=["y", "n", "s", "q"],
-        default="n"
+        default=default_choice
     )
     
     return choice
@@ -56,7 +78,24 @@ def append(df: pl.DataFrame, data: ProcessedData) -> pl.DataFrame:
     """Append a new processed comment to the DataFrame."""
     return pl.concat([df, pl.DataFrame([data.model_dump()])], how="vertical", rechunk=True)
 
+def apply_filters(comments, args):
+    """Apply filters to the comments DataFrame based on command line arguments."""
+    filtered_comments = comments
+    
+    if args.filter:
+        filtered_comments = filtered_comments.filter(pl.col("content").str.contains(args.filter))
+    
+    if args.author_filter:
+        filtered_comments = filtered_comments.filter(pl.col("author_name").str.contains(args.author_filter))
+    
+    return filtered_comments
+
 def main():
+    args = parse_args()
+    
+    # Set random seed
+    random.seed()
+    
     # Load data
     comments = read_cached_avro("comments.avro")
     global original_comments
@@ -68,11 +107,21 @@ def main():
         processed_ids = set(processed_df.select("comment_id").to_series().to_list())
         comments = comments.filter(~pl.col("comment_id").is_in(processed_ids))
     
+    # Apply filters
+    comments = apply_filters(comments, args)
+    
     if len(comments) == 0:
-        console.print("[bold green]All comments have been processed![/bold green]")
+        console.print("[bold red]No comments match your filter criteria or all comments have been processed![/bold red]")
         return
     
-    console.print(f"[bold]Found {len(comments)} unprocessed comments[/bold]")
+    console.print(f"[bold]Found {len(comments)} unprocessed comments matching your criteria[/bold]")
+    
+    # Auto mode message
+    if args.auto:
+        console.print(f"[bold cyan]AUTO MODE: All comments will be classified as {'bot/spam' if args.auto == 'y' else 'normal'}[/bold cyan]")
+        console.print(f"[bold cyan]Press Ctrl+C to stop at any time[/bold cyan]")
+        console.print(f"[bold cyan]Processing will begin in 3 seconds...[/bold cyan]")
+        time.sleep(3)
     
     # Convert to list of dictionaries for random access
     comments_list = comments.to_dicts()
@@ -80,28 +129,46 @@ def main():
     
     # Process comments in random order
     processed_count = 0
-    for i, row in enumerate(comments_list, 1):
-        data = Data.model_validate(row)
-        choice = display_comment(data, i, len(comments_list))
-        
-        if choice == "q":
-            console.print("[yellow]Quitting...[/yellow]")
-            break
-        elif choice == "s":
-            console.print("[yellow]Skipping...[/yellow]")
-            continue
-        
-        # Process the comment
-        processed_data = ProcessedData(
-            is_bot_comment=(choice == "y"),
-            **data.model_dump()
-        )
-        
-        processed_df = append(processed_df, processed_data)
-        processed_df.write_avro("processed.avro")
-        
-        processed_count += 1
-        console.print(f"[green]Saved classification for comment {i} (Total classified: {processed_count})[/green]")
+    start_time = time.time()
+    seconds_per_comment = 0
+    
+    try:
+        for i, row in enumerate(comments_list, 1):
+            comment_start_time = time.time()
+            data = Data.model_validate(row)
+            
+            # Calculate and display ETA if we have processed at least one comment
+            if processed_count > 0:
+                seconds_per_comment = (time.time() - start_time) / processed_count
+                remaining_comments = len(comments_list) - i + 1
+                eta_seconds = int(seconds_per_comment * remaining_comments)
+                eta = str(timedelta(seconds=eta_seconds))
+                eta_message = f"[cyan]Avg: {seconds_per_comment:.2f}s per comment | ETA: {eta} remaining[/cyan]"
+                console.print(eta_message)
+            
+            choice = display_comment(data, i, len(comments_list), default_choice=args.default, auto_choice=args.auto)
+            
+            if choice == "q":
+                console.print("[yellow]Quitting...[/yellow]")
+                break
+            elif choice == "s" and not args.auto:
+                console.print("[yellow]Skipping...[/yellow]")
+                continue
+            
+            # Process the comment
+            processed_data = ProcessedData(
+                is_bot_comment=(choice == "y"),
+                **data.model_dump()
+            )
+            
+            processed_df = append(processed_df, processed_data)
+            processed_df.write_avro("processed.avro")
+            
+            processed_count += 1
+            comment_time = time.time() - comment_start_time
+            console.print(f"[green]Saved classification for comment {i} (Total classified: {processed_count}, Time: {comment_time:.2f}s)[/green]")
+    except KeyboardInterrupt:
+        console.print("[bold red]Process interrupted by user[/bold red]")
     
     # Show summary
     total_processed = len(processed_df)
@@ -116,9 +183,27 @@ def main():
     summary_table.add_row("Regular Comments", str(total_processed - bot_comments))
     summary_table.add_row("Classified This Session", str(processed_count))
     
+    # Add time statistics to summary
+    if processed_count > 0:
+        total_time = time.time() - start_time
+        seconds_per_comment = total_time / processed_count
+        summary_table.add_row("Total Time", f"{total_time:.2f}s")
+        summary_table.add_row("Seconds per Comment", f"{seconds_per_comment:.2f}s")
+    
+    # Show mode and filter information
+    console.print("\n[bold]Session Settings:[/bold]")
+    if args.auto:
+        console.print(f"Mode: Auto (forced '{args.auto}' classification)")
+    else:
+        console.print(f"Mode: Manual (default: '{args.default}')")
+        
+    if any([args.filter, args.author_filter]):
+        if args.filter:
+            console.print(f"Content filter: '{args.filter}'")
+        if args.author_filter:
+            console.print(f"Author filter: '{args.author_filter}'")
+    
     console.print(summary_table)
 
 if __name__ == "__main__":
-    # Set random seed
-    random.seed()
     main() 
