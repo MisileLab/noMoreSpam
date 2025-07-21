@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
+from rich.progress import Progress
 
 from utils import Data, ProcessedData, read_cached_avro
 
@@ -30,7 +31,7 @@ def parse_args():
                         help="Auto mode: automatically classify all comments as specified (y=bot/spam, n=normal)")
     return parser.parse_args()
 
-def display_comment(data: Data, index: int, total: int, default_choice="n", auto_choice=None):
+def display_comment(data: Data, index: int, total: int, default_choice="n", auto_choice=None, eta_info=None):
     """Display a comment with rich formatting for manual classification."""
     console.clear()
     
@@ -58,7 +59,12 @@ def display_comment(data: Data, index: int, total: int, default_choice="n", auto
     console.print(Panel(video_table, title="Video Information"))
     console.print(Panel(comment_table, title="Comment Information"))
     console.print(Panel(f"{parent_info}\n{data.content}", title="Content"))
-    console.print(f"Comment {index} of {total}")
+    
+    # Display progress and ETA
+    progress_text = f"Comment {index} of {total}"
+    if eta_info:
+        progress_text += f" | {eta_info}"
+    console.print(Panel(progress_text, title="Progress"))
     
     # If in auto mode, use the auto choice
     if auto_choice:
@@ -131,22 +137,33 @@ def main():
     processed_count = 0
     start_time = time.time()
     seconds_per_comment = 0
+    eta_info = None
     
     try:
         for i, row in enumerate(comments_list, 1):
             comment_start_time = time.time()
             data = Data.model_validate(row)
             
-            # Calculate and display ETA if we have processed at least one comment
+            # Calculate ETA if we have processed at least one comment
             if processed_count > 0:
                 seconds_per_comment = (time.time() - start_time) / processed_count
                 remaining_comments = len(comments_list) - i + 1
                 eta_seconds = int(seconds_per_comment * remaining_comments)
                 eta = str(timedelta(seconds=eta_seconds))
-                eta_message = f"[cyan]Avg: {seconds_per_comment:.2f}s per comment | ETA: {eta} remaining[/cyan]"
-                console.print(eta_message)
+                eta_info = f"[cyan]Avg: {seconds_per_comment:.2f}s per comment | ETA: {eta}[/cyan]"
+                
+                # Calculate completion percentage
+                percent_complete = (i - 1) / len(comments_list) * 100
+                eta_info += f" | {percent_complete:.1f}% complete"
             
-            choice = display_comment(data, i, len(comments_list), default_choice=args.default, auto_choice=args.auto)
+            choice = display_comment(
+                data, 
+                i, 
+                len(comments_list), 
+                default_choice=args.default, 
+                auto_choice=args.auto,
+                eta_info=eta_info
+            )
             
             if choice == "q":
                 console.print("[yellow]Quitting...[/yellow]")
@@ -167,6 +184,12 @@ def main():
             processed_count += 1
             comment_time = time.time() - comment_start_time
             console.print(f"[green]Saved classification for comment {i} (Total classified: {processed_count}, Time: {comment_time:.2f}s)[/green]")
+            
+            # Show estimated completion time after each comment
+            if processed_count > 0:
+                completion_time = start_time + (seconds_per_comment * len(comments_list))
+                estimated_finish = time.strftime("%H:%M:%S", time.localtime(completion_time))
+                console.print(f"[cyan]Estimated completion time: {estimated_finish}[/cyan]")
     except KeyboardInterrupt:
         console.print("[bold red]Process interrupted by user[/bold red]")
     
@@ -176,7 +199,7 @@ def main():
     
     summary_table = Table(title="Classification Summary")
     summary_table.add_column("Metric", style="cyan")
-    summary_table.add_column("Count", style="green")
+    summary_table.add_column("Value", style="green")
     
     summary_table.add_row("Total Processed", str(total_processed))
     summary_table.add_row("Bot Comments", str(bot_comments))
@@ -187,8 +210,19 @@ def main():
     if processed_count > 0:
         total_time = time.time() - start_time
         seconds_per_comment = total_time / processed_count
-        summary_table.add_row("Total Time", f"{total_time:.2f}s")
+        
+        # Format time as HH:MM:SS
+        formatted_time = str(timedelta(seconds=int(total_time)))
+        
+        summary_table.add_row("Total Time", formatted_time)
         summary_table.add_row("Seconds per Comment", f"{seconds_per_comment:.2f}s")
+        
+        # Add projected time for all remaining comments
+        remaining_all = len(comments) - processed_count
+        if remaining_all > 0:
+            projected_time = remaining_all * seconds_per_comment
+            projected_formatted = str(timedelta(seconds=int(projected_time)))
+            summary_table.add_row("Projected Time for All Remaining", projected_formatted)
     
     # Show mode and filter information
     console.print("\n[bold]Session Settings:[/bold]")
