@@ -27,6 +27,7 @@ dependencies = [
   "torch==2.7.1",
   "scikit-learn==1.7.1",
   "seaborn==0.13.2",
+  "emoji==2.14.1",
 ]
 
 [project.optional-dependencies]
