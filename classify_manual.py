@@ -1,5 +1,6 @@
 import os
 import sys
+import random
 from copy import deepcopy
 from pathlib import Path
 
@@ -73,10 +74,15 @@ def main():
     
     console.print(f"[bold]Found {len(comments)} unprocessed comments[/bold]")
     
-    # Process comments one by one
-    for i, row in enumerate(comments.iter_rows(named=True), 1):
+    # Convert to list of dictionaries for random access
+    comments_list = comments.to_dicts()
+    random.shuffle(comments_list)
+    
+    # Process comments in random order
+    processed_count = 0
+    for i, row in enumerate(comments_list, 1):
         data = Data.model_validate(row)
-        choice = display_comment(data, i, len(comments))
+        choice = display_comment(data, i, len(comments_list))
         
         if choice == "q":
             console.print("[yellow]Quitting...[/yellow]")
@@ -94,7 +100,8 @@ def main():
         processed_df = append(processed_df, processed_data)
         processed_df.write_avro("processed.avro")
         
-        console.print(f"[green]Saved classification for comment {i}[/green]")
+        processed_count += 1
+        console.print(f"[green]Saved classification for comment {i} (Total classified: {processed_count})[/green]")
     
     # Show summary
     total_processed = len(processed_df)
@@ -107,8 +114,11 @@ def main():
     summary_table.add_row("Total Processed", str(total_processed))
     summary_table.add_row("Bot Comments", str(bot_comments))
     summary_table.add_row("Regular Comments", str(total_processed - bot_comments))
+    summary_table.add_row("Classified This Session", str(processed_count))
     
     console.print(summary_table)
 
 if __name__ == "__main__":
+    # Set random seed
+    random.seed()
     main() 
