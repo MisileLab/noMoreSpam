@@ -30,4 +30,4 @@ dataset_dict = DatasetDict({
 })
 
 # Push to hub
-_ = dataset_dict.push_to_hub('MisileLab/youtube-bot-comments') # pyright: ignore[reportUnknownMemberType]
+_ = dataset_dict.push_to_hub('MisileLab/youtube-bot-comments-v2') # pyright: ignore[reportUnknownMemberType]

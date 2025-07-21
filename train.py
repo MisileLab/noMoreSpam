@@ -188,7 +188,7 @@ def _():
 def _():
     from datasets import load_dataset
 
-    dataset_name = "misilelab/youtube-bot-comments"
+    dataset_name = "misilelab/youtube-bot-comments-v2"
 
     train_dataset = load_dataset(dataset_name, split="train").with_format("polars")[:]
     valid_dataset = load_dataset(dataset_name, split="validation").with_format("polars")[:]
