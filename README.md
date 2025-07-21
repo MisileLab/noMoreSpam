@@ -25,6 +25,7 @@ noMoreSpam is a tool designed to identify and filter bot comments on YouTube vid
 - Python 3.13.4 or higher
 - YouTube API key for comment collection
 - PyTorch (CPU or ROCm version available)
+- OpenAI API key (for LLM-based classification)
 
 ## Installation
 
@@ -39,9 +40,10 @@ noMoreSpam is a tool designed to identify and filter bot comments on YouTube vid
    uv sync
    ```
 
-3. Set up your YouTube API key as an environment variable:
+3. Set up your API keys as environment variables:
    ```
    export YOUTUBE_API_KEY=your_api_key_here
+   export OPENAI_KEY=your_openai_api_key_here
    ```
 
 ## Usage
@@ -60,12 +62,22 @@ noMoreSpam is a tool designed to identify and filter bot comments on YouTube vid
 
 ### Classification
 
-1. Run the classification model:
+1. Run the ML-based classification model:
    ```
    python classify.py
    ```
 
-2. Train the model with custom data:
+2. Run the LLM-based classification model:
+   ```
+   python classify_llm.py
+   ```
+
+3. Evaluate comments interactively:
+   ```
+   python evaluate.py
+   ```
+
+4. Train the model with custom data:
    ```
    python train.py
    ```
@@ -89,12 +101,14 @@ noMoreSpam is a tool designed to identify and filter bot comments on YouTube vid
 
 ## Project Structure
 
-- `classify.py`: Runs the bot comment classification model
+- `classify.py`: Runs the ML-based bot comment classification model
+- `classify_llm.py`: Runs the LLM-based bot comment classification using OpenAI models
 - `clear.py`: Clears temporary OpenAI files
 - `data/`: Directory containing data processing scripts
   - `get_comments.py`: Collects comments from YouTube videos
   - `get_videos.py`: Collects YouTube video information
   - `train_test_split.py`: Splits data into training and test sets
+- `evaluate.py`: Interactive tool for evaluating comments with the trained model
 - `main.py`: Entry point for running modules
 - `merge.py`: Merges processed embedding data
 - `train.py`: Trains the bot detection model
