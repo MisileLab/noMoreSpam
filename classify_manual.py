@@ -29,9 +29,11 @@ def parse_args():
                         help="Filter comments by author name containing this text")
     parser.add_argument("--auto", choices=["y", "n"], default=None,
                         help="Auto mode: automatically classify all comments as specified (y=bot/spam, n=normal)")
+    parser.add_argument("--modify-processed", action="store_true",
+                        help="Modify already processed comments instead of unprocessed ones")
     return parser.parse_args()
 
-def display_comment(data: Data, index: int, total: int, default_choice="n", auto_choice=None, eta_info=None):
+def display_comment(data: Data, index: int, total: int, default_choice="n", auto_choice=None, eta_info=None, current_classification=None):
     """Display a comment with rich formatting for manual classification."""
     console.clear()
     
@@ -64,6 +66,9 @@ def display_comment(data: Data, index: int, total: int, default_choice="n", auto
     progress_text = f"Comment {index} of {total}"
     if eta_info:
         progress_text += f" | {eta_info}"
+    if current_classification is not None:
+        classification_text = "bot/spam" if current_classification else "normal"
+        progress_text += f" | Current classification: [bold]{classification_text}[/bold]"
     console.print(Panel(progress_text, title="Progress"))
     
     # If in auto mode, use the auto choice
@@ -83,6 +88,13 @@ def display_comment(data: Data, index: int, total: int, default_choice="n", auto
 def append(df: pl.DataFrame, data: ProcessedData) -> pl.DataFrame:
     """Append a new processed comment to the DataFrame."""
     return pl.concat([df, pl.DataFrame([data.model_dump()])], how="vertical", rechunk=True)
+
+def update_processed(df: pl.DataFrame, data: ProcessedData) -> pl.DataFrame:
+    """Update an existing processed comment in the DataFrame."""
+    # Filter out the existing entry
+    filtered_df = df.filter(pl.col("comment_id") != data.comment_id)
+    # Add the updated entry
+    return append(filtered_df, data)
 
 def apply_filters(comments, args):
     """Apply filters to the comments DataFrame based on command line arguments."""
@@ -108,19 +120,35 @@ def main():
     original_comments = deepcopy(comments)
     processed_df = read_cached_avro("processed.avro")
     
-    # Remove already processed comments from the comments DataFrame
-    if len(processed_df) > 0:
-        processed_ids = set(processed_df.select("comment_id").to_series().to_list())
-        comments = comments.filter(~pl.col("comment_id").is_in(processed_ids))
-    
-    # Apply filters
-    comments = apply_filters(comments, args)
-    
-    if len(comments) == 0:
-        console.print("[bold red]No comments match your filter criteria or all comments have been processed![/bold red]")
-        return
-    
-    console.print(f"[bold]Found {len(comments)} unprocessed comments matching your criteria[/bold]")
+    if args.modify_processed:
+        # We're modifying processed comments
+        if len(processed_df) == 0:
+            console.print("[bold red]No processed comments found to modify![/bold red]")
+            return
+        
+        # Apply filters to processed comments
+        working_df = apply_filters(processed_df, args)
+        
+        if len(working_df) == 0:
+            console.print("[bold red]No processed comments match your filter criteria![/bold red]")
+            return
+        
+        console.print(f"[bold]Found {len(working_df)} processed comments matching your criteria for modification[/bold]")
+    else:
+        # We're processing new comments
+        # Remove already processed comments from the comments DataFrame
+        if len(processed_df) > 0:
+            processed_ids = set(processed_df.select("comment_id").to_series().to_list())
+            comments = comments.filter(~pl.col("comment_id").is_in(processed_ids))
+        
+        # Apply filters
+        working_df = apply_filters(comments, args)
+        
+        if len(working_df) == 0:
+            console.print("[bold red]No comments match your filter criteria or all comments have been processed![/bold red]")
+            return
+        
+        console.print(f"[bold]Found {len(working_df)} unprocessed comments matching your criteria[/bold]")
     
     # Auto mode message
     if args.auto:
@@ -130,7 +158,7 @@ def main():
         time.sleep(3)
     
     # Convert to list of dictionaries for random access
-    comments_list = comments.to_dicts()
+    comments_list = working_df.to_dicts()
     random.shuffle(comments_list)
     
     # Process comments in random order
@@ -142,7 +170,16 @@ def main():
     try:
         for i, row in enumerate(comments_list, 1):
             comment_start_time = time.time()
-            data = Data.model_validate(row)
+            
+            if args.modify_processed:
+                # For modifying existing entries, we already have ProcessedData
+                processed_data = ProcessedData.model_validate(row)
+                data = Data.model_validate(row)
+                current_classification = processed_data.is_bot_comment
+            else:
+                # For new entries, we have Data
+                data = Data.model_validate(row)
+                current_classification = None
             
             # Calculate ETA if we have processed at least one comment
             if processed_count > 0:
@@ -156,13 +193,19 @@ def main():
                 percent_complete = (i - 1) / len(comments_list) * 100
                 eta_info += f" | {percent_complete:.1f}% complete"
             
+            # Set default choice based on current classification if modifying
+            display_default = args.default
+            if args.modify_processed and current_classification is not None:
+                display_default = "y" if current_classification else "n"
+            
             choice = display_comment(
                 data, 
                 i, 
                 len(comments_list), 
-                default_choice=args.default, 
+                default_choice=display_default, 
                 auto_choice=args.auto,
-                eta_info=eta_info
+                eta_info=eta_info,
+                current_classification=current_classification if args.modify_processed else None
             )
             
             if choice == "q":
@@ -173,17 +216,25 @@ def main():
                 continue
             
             # Process the comment
-            processed_data = ProcessedData(
+            new_processed_data = ProcessedData(
                 is_bot_comment=(choice == "y"),
                 **data.model_dump()
             )
             
-            processed_df = append(processed_df, processed_data)
+            if args.modify_processed:
+                # Update existing entry
+                processed_df = update_processed(processed_df, new_processed_data)
+                action_text = "Updated"
+            else:
+                # Add new entry
+                processed_df = append(processed_df, new_processed_data)
+                action_text = "Saved"
+            
             processed_df.write_avro("processed.avro")
             
             processed_count += 1
             comment_time = time.time() - comment_start_time
-            console.print(f"[green]Saved classification for comment {i} (Total classified: {processed_count}, Time: {comment_time:.2f}s)[/green]")
+            console.print(f"[green]{action_text} classification for comment {i} (Total modified: {processed_count}, Time: {comment_time:.2f}s)[/green]")
             
             # Show estimated completion time after each comment
             if processed_count > 0:
@@ -204,7 +255,7 @@ def main():
     summary_table.add_row("Total Processed", str(total_processed))
     summary_table.add_row("Bot Comments", str(bot_comments))
     summary_table.add_row("Regular Comments", str(total_processed - bot_comments))
-    summary_table.add_row("Classified This Session", str(processed_count))
+    summary_table.add_row(f"{'Modified' if args.modify_processed else 'Classified'} This Session", str(processed_count))
     
     # Add time statistics to summary
     if processed_count > 0:
@@ -218,14 +269,17 @@ def main():
         summary_table.add_row("Seconds per Comment", f"{seconds_per_comment:.2f}s")
         
         # Add projected time for all remaining comments
-        remaining_all = len(comments) - processed_count
-        if remaining_all > 0:
-            projected_time = remaining_all * seconds_per_comment
-            projected_formatted = str(timedelta(seconds=int(projected_time)))
-            summary_table.add_row("Projected Time for All Remaining", projected_formatted)
+        if not args.modify_processed:
+            remaining_all = len(comments) - processed_count
+            if remaining_all > 0:
+                projected_time = remaining_all * seconds_per_comment
+                projected_formatted = str(timedelta(seconds=int(projected_time)))
+                summary_table.add_row("Projected Time for All Remaining", projected_formatted)
     
     # Show mode and filter information
     console.print("\n[bold]Session Settings:[/bold]")
+    console.print(f"Target: {'Modifying existing entries' if args.modify_processed else 'Processing new entries'}")
+    
     if args.auto:
         console.print(f"Mode: Auto (forced '{args.auto}' classification)")
     else:
