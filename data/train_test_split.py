@@ -5,7 +5,7 @@ from utils import read_cached_avro
 df = read_cached_avro("processed.avro")
 
 # Shuffle the data first
-df = df.sample(fraction=1.0)
+df = df.sample(fraction=1.0, shuffle=True)
 
 # Calculate split indices
 n = len(df)
