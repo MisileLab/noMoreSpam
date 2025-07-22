@@ -2,6 +2,7 @@ import os
 import sys
 import random
 import argparse
+import re
 from copy import deepcopy
 from pathlib import Path
 import time
@@ -27,10 +28,14 @@ def parse_args():
                         help="Filter comments containing this text")
     parser.add_argument("--author-filter", type=str, default=None,
                         help="Filter comments by author name containing this text")
+    parser.add_argument("--author-regex", type=str, default=None,
+                        help="Filter comments by author name matching this regex pattern")
     parser.add_argument("--auto", choices=["y", "n"], default=None,
                         help="Auto mode: automatically classify all comments as specified (y=bot/spam, n=normal)")
     parser.add_argument("--modify-processed", action="store_true",
                         help="Modify already processed comments instead of unprocessed ones")
+    parser.add_argument("--balance", action="store_true",
+                        help="Automatically balance the dataset by classifying to reach equal yes/no counts")
     return parser.parse_args()
 
 def display_comment(data: Data, index: int, total: int, default_choice="n", auto_choice=None, eta_info=None, current_classification=None):
@@ -106,7 +111,30 @@ def apply_filters(comments, args):
     if args.author_filter:
         filtered_comments = filtered_comments.filter(pl.col("author_name").str.contains(args.author_filter))
     
+    if args.author_regex:
+        try:
+            # Convert to Python objects, filter with regex, then get back only matching IDs
+            author_regex = re.compile(args.author_regex)
+            comment_dicts = filtered_comments.to_dicts()
+            matching_ids = [
+                comment["comment_id"] for comment in comment_dicts 
+                if author_regex.search(comment["author_name"])
+            ]
+            filtered_comments = filtered_comments.filter(pl.col("comment_id").is_in(matching_ids))
+        except re.error as e:
+            console.print(f"[bold red]Invalid author regex pattern: {e}[/bold red]")
+            sys.exit(1)
+    
     return filtered_comments
+
+def get_classification_counts(processed_df):
+    """Get counts of bot and normal comments in the processed DataFrame."""
+    if len(processed_df) == 0:
+        return 0, 0
+    
+    bot_count = processed_df.filter(pl.col("is_bot_comment") == True).height
+    normal_count = processed_df.filter(pl.col("is_bot_comment") == False).height
+    return bot_count, normal_count
 
 def main():
     args = parse_args()
@@ -119,6 +147,9 @@ def main():
     global original_comments
     original_comments = deepcopy(comments)
     processed_df = read_cached_avro("processed.avro")
+    
+    # Get current classification counts
+    bot_count, normal_count = get_classification_counts(processed_df)
     
     if args.modify_processed:
         # We're modifying processed comments
@@ -153,6 +184,17 @@ def main():
     # Auto mode message
     if args.auto:
         console.print(f"[bold cyan]AUTO MODE: All comments will be classified as {'bot/spam' if args.auto == 'y' else 'normal'}[/bold cyan]")
+        console.print(f"[bold cyan]Press Ctrl+C to stop at any time[/bold cyan]")
+        console.print(f"[bold cyan]Processing will begin in 3 seconds...[/bold cyan]")
+        time.sleep(3)
+    elif args.balance:
+        console.print(f"[bold cyan]BALANCE MODE: Currently {bot_count} bot/spam and {normal_count} normal comments[/bold cyan]")
+        if bot_count > normal_count:
+            console.print(f"[bold cyan]Will classify comments as normal until balanced[/bold cyan]")
+        elif normal_count > bot_count:
+            console.print(f"[bold cyan]Will classify comments as bot/spam until balanced[/bold cyan]")
+        else:
+            console.print(f"[bold cyan]Dataset is already balanced. Will use default classification.[/bold cyan]")
         console.print(f"[bold cyan]Press Ctrl+C to stop at any time[/bold cyan]")
         console.print(f"[bold cyan]Processing will begin in 3 seconds...[/bold cyan]")
         time.sleep(3)
@@ -198,12 +240,24 @@ def main():
             if args.modify_processed and current_classification is not None:
                 display_default = "y" if current_classification else "n"
             
+            # Handle balance mode - update bot_count and normal_count first
+            auto_balance_choice = None
+            if args.balance and not args.modify_processed:
+                bot_count, normal_count = get_classification_counts(processed_df)
+                if bot_count > normal_count:
+                    # More bot comments, so classify as normal
+                    auto_balance_choice = "n"
+                elif normal_count > bot_count:
+                    # More normal comments, so classify as bot
+                    auto_balance_choice = "y"
+                # If equal, don't auto-classify
+            
             choice = display_comment(
                 data, 
                 i, 
                 len(comments_list), 
                 default_choice=display_default, 
-                auto_choice=args.auto,
+                auto_choice=args.auto or auto_balance_choice,
                 eta_info=eta_info,
                 current_classification=current_classification if args.modify_processed else None
             )
@@ -211,7 +265,7 @@ def main():
             if choice == "q":
                 console.print("[yellow]Quitting...[/yellow]")
                 break
-            elif choice == "s" and not args.auto:
+            elif choice == "s" and not args.auto and not auto_balance_choice:
                 console.print("[yellow]Skipping...[/yellow]")
                 continue
             
@@ -241,12 +295,20 @@ def main():
                 completion_time = start_time + (seconds_per_comment * len(comments_list))
                 estimated_finish = time.strftime("%H:%M:%S", time.localtime(completion_time))
                 console.print(f"[cyan]Estimated completion time: {estimated_finish}[/cyan]")
+                
+                # If in balance mode, show current balance status
+                if args.balance:
+                    bot_count, normal_count = get_classification_counts(processed_df)
+                    console.print(f"[cyan]Current balance: {bot_count} bot/spam, {normal_count} normal (difference: {abs(bot_count - normal_count)})[/cyan]")
+                    if bot_count == normal_count:
+                        console.print(f"[bold green]Dataset is now perfectly balanced![/bold green]")
     except KeyboardInterrupt:
         console.print("[bold red]Process interrupted by user[/bold red]")
     
     # Show summary
     total_processed = len(processed_df)
     bot_comments = processed_df.filter(pl.col("is_bot_comment") == True).height
+    normal_comments = processed_df.filter(pl.col("is_bot_comment") == False).height
     
     summary_table = Table(title="Classification Summary")
     summary_table.add_column("Metric", style="cyan")
@@ -254,7 +316,8 @@ def main():
     
     summary_table.add_row("Total Processed", str(total_processed))
     summary_table.add_row("Bot Comments", str(bot_comments))
-    summary_table.add_row("Regular Comments", str(total_processed - bot_comments))
+    summary_table.add_row("Regular Comments", str(normal_comments))
+    summary_table.add_row("Balance Ratio", f"{bot_comments/total_processed:.2%} bot / {normal_comments/total_processed:.2%} normal")
     summary_table.add_row(f"{'Modified' if args.modify_processed else 'Classified'} This Session", str(processed_count))
     
     # Add time statistics to summary
@@ -282,14 +345,18 @@ def main():
     
     if args.auto:
         console.print(f"Mode: Auto (forced '{args.auto}' classification)")
+    elif args.balance:
+        console.print(f"Mode: Balance (auto-classifying to achieve equal counts)")
     else:
         console.print(f"Mode: Manual (default: '{args.default}')")
         
-    if any([args.filter, args.author_filter]):
+    if any([args.filter, args.author_filter, args.author_regex]):
         if args.filter:
             console.print(f"Content filter: '{args.filter}'")
         if args.author_filter:
             console.print(f"Author filter: '{args.author_filter}'")
+        if args.author_regex:
+            console.print(f"Author regex: '{args.author_regex}'")
     
     console.print(summary_table)
 
