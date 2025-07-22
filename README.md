@@ -7,6 +7,10 @@ imported from https://github.com/MisileLab/h3/commits/main/projects/dsb/vivian
 
 - [v0](https://static.marimo.app/static/vivian-jcxs)
 - [v1](https://static.marimo.app/static/vivian-44de)
+- [v1.1](https://static.marimo.app/static/nomorespam-zvfn)
+  - Updated dataset to [v2](https://huggingface.co/datasets/MisileLab/youtube-bot-comments-v2)
+    - Manual & regex classification
+    - 50% user, 50% bot
 
 ## Overview
 
