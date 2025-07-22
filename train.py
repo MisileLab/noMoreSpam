@@ -20,6 +20,7 @@ def _():
     from torch.optim import AdamW
     import altair as alt
     import polars as pl
+    from safetensors.torch import save_model
 
     class FocalLoss(nn.Module):
         """Focal Loss for handling class imbalance - supports both binary and multi-class"""
@@ -181,6 +182,7 @@ def _():
         alt,
         pl,
         torch,
+        save_model,
     )
 
 
@@ -211,6 +213,7 @@ def _(
     torch,
     train_dataset,
     valid_dataset,
+    save_model,
 ):
     # import re
     # import emoji
@@ -446,7 +449,7 @@ def _(
             best_valid_acc = valid_acc
             no_improve_epochs = 0
             # Save best model
-            torch.save(model.state_dict(), 'model.pth')
+            save_model(model, 'model.safetensors')
         else:
             no_improve_epochs += 1
             if no_improve_epochs >= patience:
@@ -556,14 +559,14 @@ def _(final_chart):
 
 @app.cell
 def _():
-    model_save_path = "model.pth"
+    model_save_path = "model.safetensors"
     return (model_save_path,)
 
 
 @app.cell
-def _(model, model_save_path, torch):
+def _(model, model_save_path, save_model):
     # Save the trained model's state_dict
-    torch.save(model.state_dict(), model_save_path)
+    save_model(model, model_save_path)
     model_save_path
     return
 
@@ -593,7 +596,8 @@ def _(device, mo, model, test_loader, torch):
         from sklearn.metrics import confusion_matrix, accuracy_score
 
         # Load saved model state
-        model.load_state_dict(torch.load('model.pth', map_location=device))
+        from safetensors.torch import load_model
+        load_model(model, 'model.safetensors', device=device)
         model.to(device)
         model.eval()
 

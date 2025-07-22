@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from transformers import ElectraModel, AutoTokenizer
+from safetensors.torch import load_model
 # import re
 # import emoji
 # from soynlp.normalizer import repeat_normalize
@@ -110,7 +111,7 @@ print(f"Using device: {device}")
 
 tokenizer = AutoTokenizer.from_pretrained("beomi/KcELECTRA-base")
 model = SpamUserClassifier().to(device)
-model.load_state_dict(torch.load('model.pth', map_location=device))
+load_model(model, 'model.safetensors', device=str(device))
 model.eval()
 
 print("Spam Detection Model Loaded Successfully!")

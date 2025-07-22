@@ -1,7 +1,7 @@
 # Custom
 comments.avro
 processed.avro
-model.pth
+model.safetensors
 
 # Python.gitignore by ignofierplus
 __pycache__/
