@@ -35,7 +35,7 @@ def append_comment(df: DataFrame, comment: Comment, video: Video) -> DataFrame:
     content=content,
     author_name=authorDisplayName,
     author_image_url=authorImageUrl,
-    parent_id=snippet.parentId if snippet.parentId else "",
+    parent_id=snippet.parentId or "",
     video_id=video.video_id,
     video_title=video.video_title,
     video_author=video.video_author
@@ -55,9 +55,7 @@ def append_commentThreads(df: DataFrame, commentThread: CommentThread, video: Vi
     raise ValueError("Top-level comment has no ID")
   df = append_comment(df, topLevelComment, video)
   _replies = commentThread.replies
-  replies = _replies.comments if _replies is not None else []
-  if not replies:
-    replies = []
+  replies = (_replies.comments if _replies is not None else []) or []
   if len(replies) == snippet.totalReplyCount:
     for reply in replies:
       df = append_comment(df, reply, video)
@@ -67,7 +65,7 @@ def append_commentThreads(df: DataFrame, commentThread: CommentThread, video: Vi
       parent_id=topLevelComment_id,
     )
     if isinstance(comments, dict):
-      raise ValueError("Failed to fetch comments for parent ID: " + topLevelComment_id)
+      raise ValueError(f"Failed to fetch comments for parent ID: {topLevelComment_id}")
     items = comments.items
     if items is None:
       items = []
