@@ -1189,6 +1189,7 @@ dependencies = [
     { name = "torch", version = "2.7.1+rocm6.3", source = { registry = "https://download.pytorch.org/whl/rocm6.3" }, marker = "extra == 'extra-10-nomorespam-rocm'" },
     { name = "tqdm" },
     { name = "transformers" },
+    { name = "typer" },
     { name = "websockets" },
 ]
 
@@ -1228,6 +1229,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'rocm'", specifier = "==2.7.1+rocm6.3", index = "https://download.pytorch.org/whl/rocm6.3", conflict = { package = "nomorespam", extra = "rocm" } },
     { name = "tqdm", specifier = "==4.67.1" },
     { name = "transformers", specifier = "==4.53.2" },
+    { name = "typer", specifier = "==0.16.0" },
     { name = "websockets", specifier = "==15.0.1" },
 ]
 provides-extras = ["cpu", "rocm"]

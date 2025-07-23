@@ -8,7 +8,7 @@ df = read_avro("embedding.avro")
 def append(df: DataFrame, data: DataFrame) -> DataFrame:
   return concat([df, data], how="vertical", rechunk=True)
 
-for i in df.iter_rows(named=True):
+for _ in df.iter_rows(named=True):
   df = append(df, df_new)
 
 df.write_avro("embedding.avro")

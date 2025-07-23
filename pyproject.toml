@@ -28,6 +28,7 @@ dependencies = [
   "scikit-learn==1.7.1",
   "seaborn==0.13.2",
   "safetensors==0.5.3",
+  "typer==0.16.0",
 ]
 
 [project.optional-dependencies]
