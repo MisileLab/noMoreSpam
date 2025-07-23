@@ -14,7 +14,7 @@ dependencies = [
   "tqdm==4.67.1",
   "pydantic-ai-slim[openai]==0.4.4",
   "marimo==0.14.12",
-  "anthropic==0.58.2",
+  "anthropic==0.59.0",
   "plotly==6.2.0",
   "pyarrow==21.0.0",
   "transformers==4.53.2",
