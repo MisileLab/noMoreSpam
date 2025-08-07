@@ -12,7 +12,7 @@ dependencies = [
   "gradio==5.41.1",
   "openai==1.99.1",
   "tqdm==4.67.1",
-  "pydantic-ai-slim[openai]==0.6.0",
+  "pydantic-ai-slim[openai]==0.6.2",
   "marimo==0.14.16",
   "anthropic==0.61.0",
   "plotly==6.2.0",
