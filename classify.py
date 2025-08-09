@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.10"
+__generated_with = "0.14.16"
 app = marimo.App(width="medium")
 
 
@@ -13,46 +13,17 @@ def _():
 @app.cell
 def _():
     import torch
-    import torch.nn as nn
-    import torch.nn.functional as F
-    from transformers import ElectraModel, AutoTokenizer
+    from torch import nn, Tensor
     from torch.utils.data import DataLoader, Dataset
-    from torch.optim import AdamW
-    import altair as alt
     import polars as pl
+    from transformers import ElectraModel, AutoTokenizer
 
-    class FocalLoss(nn.Module):
-        """Focal Loss for handling class imbalance - supports both binary and multi-class"""
-        def __init__(self, alpha=1.0, gamma=2.0, reduction='mean'):
-            super().__init__()
-            self.alpha = alpha
-            self.gamma = gamma
-            self.reduction = reduction
+    from typing import final, override
 
-        def forward(self, inputs, targets):
-            # Handle binary classification (single output) vs multi-class
-            if inputs.dim() == 2 and inputs.size(1) == 1:
-                # Binary classification: inputs shape [batch_size, 1]
-                inputs = inputs.squeeze(-1)  # [batch_size]
-                bce_loss = F.binary_cross_entropy_with_logits(inputs, targets.float(), reduction='none')
-                pt = torch.exp(-bce_loss)
-                focal_loss = self.alpha * (1 - pt) ** self.gamma * bce_loss
-            else:
-                # Multi-class classification: inputs shape [batch_size, num_classes]
-                ce_loss = F.cross_entropy(inputs, targets, reduction='none')
-                pt = torch.exp(-ce_loss)
-                focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
-
-            if self.reduction == 'mean':
-                return focal_loss.mean()
-            elif self.reduction == 'sum':
-                return focal_loss.sum()
-            else:
-                return focal_loss
-
+    @final
     class SpamUserClassificationLayer(nn.Module):
         def __init__(self, encoder: ElectraModel):
-            super().__init__()
+            super().__init__() # pyright: ignore[reportUnknownMemberType]
 
             self.encoder = encoder
             self.dense1 = nn.Linear(1536, 512)
@@ -67,19 +38,19 @@ def _():
 
         def _init_weights(self):
             for module in [self.dense1, self.dense2]:
-                nn.init.xavier_uniform_(module.weight)
-                if module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
+                _ = nn.init.xavier_uniform_(module.weight)
+                _ = nn.init.constant_(module.bias, 0)
 
-        def forward(self, input_ids, attention_mask=None, token_type_ids=None):
+        @override
+        def forward(self, input_ids: Tensor, attention_mask: Tensor | None = None, token_type_ids: Tensor | None = None) -> Tensor: # pyright: ignore[reportExplicitAny]
             outputs = self.encoder(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 token_type_ids=token_type_ids,
                 output_attentions=True
             )
-            cls_output = outputs.last_hidden_state[:, 0, :]
-            token_embeddings = outputs.last_hidden_state
+            cls_output: Tensor = outputs.last_hidden_state[:, 0, :]
+            token_embeddings: Tensor = outputs.last_hidden_state
             input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
             sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
             sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
@@ -95,7 +66,7 @@ def _():
             x = self.dropout2(x)
             return x
 
-        def get_attention_weights(self, input_ids, attention_mask=None, token_type_ids=None):
+        def get_attention_weights(self, input_ids: Tensor, attention_mask: Tensor | None = None, token_type_ids: Tensor | None = None):
             with torch.no_grad():
                 outputs = self.encoder(
                     input_ids=input_ids,
@@ -105,8 +76,9 @@ def _():
                 )
                 return outputs.attentions[-1]
 
+    @final
     class SpamUserClassifier(nn.Module):
-        def __init__(self, pretrained_model_name="beomi/kcelectra-base"):
+        def __init__(self, pretrained_model_name: str = "beomi/kcelectra-base"):
             super().__init__()
             self.encoder = ElectraModel.from_pretrained(pretrained_model_name)
             for i, layer in enumerate(self.encoder.encoder.layer):
@@ -128,6 +100,7 @@ def _():
             if self.dense.bias is not None:
                 nn.init.constant_(self.dense.bias, 0)
 
+        @override
         def forward(self, name_input_ids, content_input_ids, name_attention_mask=None, name_token_type_ids=None,
                     content_attention_mask=None, content_token_type_ids=None, return_logits=False, return_probs=True):
             namePrediction = self.nameLayer(name_input_ids, name_attention_mask, name_token_type_ids)
