@@ -830,7 +830,7 @@ wheels = [
 
 [[package]]
 name = "keras"
-version = "3.11.1"
+version = "3.11.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py" },
@@ -842,9 +842,9 @@ dependencies = [
     { name = "packaging" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/78/e7/53a3133467f8b2d748e015aaeddc8ec0f281e239b1670c54691697dbdbb7/keras-3.11.1.tar.gz", hash = "sha256:7a27f384467fa8d0b0281665b52efd6bd948f20854099e35929786ce44d847f0", size = 1065420, upload-time = "2025-07-31T22:13:12.61Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/83/a306d6bb025ae448188d8201341215b19058f41f19b05505d5c4fe2568ae/keras-3.11.2.tar.gz", hash = "sha256:b78a4af616cbe119e88fa973d2b0443b70c7f74dd3ee888e5026f0b7e78a2801", size = 1065362, upload-time = "2025-08-11T21:05:13.887Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/99/7f/5a52d5f964f1f6eec7d6363da3670fb5b9b7f88a6d93c3b1c127ca920a32/keras-3.11.1-py3-none-any.whl", hash = "sha256:641dc7535fb737fce7841363683af31cb4dc5f1b1b5d961d3f06982eb29d8c7a", size = 1408371, upload-time = "2025-07-31T22:13:11.025Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/49/795d20e41a1cece7fe92dd80ae2cab3372cc0d1502bf3b277434d87da3a9/keras-3.11.2-py3-none-any.whl", hash = "sha256:539354b1870dce22e063118c99c766c3244030285b5100b4a6f8840145436bf0", size = 1408406, upload-time = "2025-08-11T21:05:12.132Z" },
 ]
 
 [[package]]
@@ -1261,7 +1261,7 @@ requires-dist = [
     { name = "basedpyright", specifier = "==1.31.1" },
     { name = "datasets", specifier = "==4.0.0" },
     { name = "gradio", specifier = "==5.42.0" },
-    { name = "keras", specifier = "==3.11.1" },
+    { name = "keras", specifier = "==3.11.2" },
     { name = "marimo", specifier = "==0.14.16" },
     { name = "openai", specifier = "==1.99.6" },
     { name = "plotly", specifier = "==6.2.0" },
