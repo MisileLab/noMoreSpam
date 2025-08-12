@@ -15,7 +15,7 @@ dependencies = [
   "pydantic-ai-slim[openai]==0.6.2",
   "marimo==0.14.16",
   "anthropic==0.62.0",
-  "plotly==6.2.0",
+  "plotly==6.3.0",
   "pyarrow==21.0.0",
   "transformers==4.55.0",
   "datasets==4.0.0",
