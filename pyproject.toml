@@ -27,7 +27,7 @@ dependencies = [
   "seaborn==0.13.2",
   "safetensors==0.6.2",
   "typer==0.16.0",
-  "basedpyright==1.31.1",
+  "basedpyright==1.31.2",
 ]
 
 [project.optional-dependencies]
