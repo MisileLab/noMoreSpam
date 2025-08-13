@@ -13,7 +13,7 @@ dependencies = [
   "protobuf<5.0.0",
   "safetensors==0.6.2",
   "torch==2.8.0",
-  "transformers==4.55.0",
+  "transformers==4.55.2",
 ]
 
 [project.optional-dependencies]
